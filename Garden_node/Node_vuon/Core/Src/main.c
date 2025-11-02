@@ -106,7 +106,12 @@ int main(void)
 
   sendText("Bat dau cau hinh nRF24...\r\n");
   NRF24_Config_Common();
-  sendText("Khoi dong hoan tat - NRF san sang.\r\n");
+	uint8_t feat = nrf24_r_reg(FEATURE, 1);
+	uint8_t dynp = nrf24_r_reg(DYNPD, 1);
+	char buf[64];
+	sprintf(buf, "[DEBUG] FEATURE=0x%02X DYNPD=0x%02X\r\n", feat, dynp);
+	sendText(buf);
+	sendText("Khoi dong hoan tat - NRF san sang.\r\n");
 
   // --- Gia tri khoi tao ---
   garden1.mode = 0; // 0 = AUTO, 1 = MANUAL
@@ -144,6 +149,12 @@ void NRF24_Config_Common(void)
 {
   nrf24_init();
   nrf24_pwr_up();
+	
+	uint8_t activate_cmd[2] = {0x50, 0x73};
+    csn_low();
+    HAL_SPI_Transmit(&hspi1, activate_cmd, 2, 10);
+    csn_high();
+    HAL_Delay(5);
 
   nrf24_set_addr_width(5);
   nrf24_set_channel(40);
@@ -194,10 +205,6 @@ void Read_NRF(void (*Control_Device)(Garden *))
   // ======== RX: nghe lenh 1 khung ngn (50 ms) =========
   nrf24_listen();
   HAL_Delay(5);
-  uint8_t cfg = nrf24_r_reg(CONFIG, 1);
-  char msg1[64];
-  sprintf(msg1, "[DEBUG] CONFIG=0x%02X\r\n", cfg);
-  sendText(msg1);
   uint8_t rx_buf[4] = {0};
 
   uint8_t got = 0;
@@ -216,15 +223,18 @@ void Read_NRF(void (*Control_Device)(Garden *))
   if (got)
   {
     uint8_t len = nrf24_r_pld_wid();
+		char msglen[32];
+		sprintf(msglen, "11[LEN DEBUG] r_pld_wid() = %d\r\n", len);
+		sendText(msglen);
     if (len > sizeof(rx_buf))
       len = sizeof(rx_buf);
-
-    char raw[64];
-    sprintf(raw, "[RAW RX DATA]: %02X %02X %02X %02X\r\n",
-            rx_buf[0], rx_buf[1], rx_buf[2], rx_buf[3]);
-    sendText(raw);
-
+	
     nrf24_receive(rx_buf, len);
+		
+		char raw[64];
+		sprintf(raw, "[RAW RX DATA len=%d]: %02X %02X %02X %02X\r\n",
+        len, rx_buf[0], rx_buf[1], rx_buf[2], rx_buf[3]);
+		sendText(raw);
     ProcessNRFMessage(&garden1, rx_buf);
     sendText("RX CMD OK\r\n");
   }
@@ -239,10 +249,6 @@ void Read_NRF(void (*Control_Device)(Garden *))
 
 void ProcessNRFMessage(Garden *g, uint8_t *data)
 {
-  char raw[64];
-  sprintf(raw, "[RAW RX DATA]: %02X %02X %02X %02X\r\n",
-          data[0], data[1], data[2], data[3]);
-  sendText(raw);
   // data[0] = pump, data[1] = fan, data[2] = light, data[3] = mode
   g->pump = data[0];
   g->fan = data[1];

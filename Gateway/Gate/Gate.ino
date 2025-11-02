@@ -397,19 +397,21 @@ void ReadNRF_TX()
 {
   radio.stopListening();
   delayMicroseconds(150);
+  radio.flush_tx(); 
 
-  byte cmd[4] = {
+  static byte cmd[4] = {
       (byte)garden0.getPump(),
       (byte)garden0.getFan(),
       (byte)garden0.getLight(),
       (byte)garden0.getMode()};
-
+  Serial.printf("CMD raw bytes (Pump Fan Light Mode): %d %d %d %d\n",
+                cmd[0], cmd[1], cmd[2], cmd[3]);
   const uint8_t MAX_RETRY = 3;
   bool ok = false;
 
   for (uint8_t i = 0; i < MAX_RETRY; i++)
   {
-    ok = radio.write(&cmd, sizeof(cmd));
+    ok = radio.write(cmd, sizeof(cmd));
     if (ok)
       break; // thành công -> thoát vòng lặp
     Serial.printf("Retry %d/3 failed...\n", i + 1);
@@ -417,8 +419,8 @@ void ReadNRF_TX()
   }
 
   Serial.printf("ESP→STM STATUS: %s\n", ok ? "✅ OK" : "🚫 FAIL");
-  Serial.printf("CMD raw bytes (Pump Fan Light Mode): %d %d %d %d\n",
-                cmd[0], cmd[1], cmd[2], cmd[3]);
+  // Serial.printf("CMD raw bytes (Pump Fan Light Mode): %d %d %d %d\n",
+  //               cmd[0], cmd[1], cmd[2], cmd[3]);
 
   delayMicroseconds(150);
   radio.startListening(); // quay lại RX mode

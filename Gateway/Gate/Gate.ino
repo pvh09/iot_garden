@@ -3,10 +3,10 @@
 #include <nRF24L01.h>
 #include <printf.h>
 
-#include <ESP8266WiFi.h> //https://github.com/esp8266/Arduino
+#include <ESP8266WiFi.h>  //https://github.com/esp8266/Arduino
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
-#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
+#include <WiFiManager.h>  //https://github.com/tzapu/WiFiManager
 #include <PubSubClient.h>
 #include <SoftwareSerial.h>
 #include "Model.h"
@@ -17,11 +17,12 @@
 #include <RF24.h>
 
 // --- NRF24 ---
-#define CE_PIN 4  // GPIO4
-#define CSN_PIN 5 // GPIO5
+#define CE_PIN 4   // GPIO4
+#define CSN_PIN 5  // GPIO5
 
-RF24 radio(CE_PIN, CSN_PIN);                      // CE=D2, CSN=D1
-const byte diachi[5] = {'A', 'B', 'C', 'D', 'E'}; // giống STM32
+RF24 radio(CE_PIN, CSN_PIN);                         // CE=D2, CSN=D1
+const byte ADDR_UP[5] = { 'N','O','D','E','1' };  // STM -> ESP
+const byte ADDR_DN[5] = { 'G','A','T','E','1' };  // ESP -> STM
 
 #define LED 2
 #define PIN_AP 0
@@ -32,8 +33,8 @@ const byte diachi[5] = {'A', 'B', 'C', 'D', 'E'}; // giống STM32
 #define TIME_OUT 5000
 
 const char *ID = "GateWay";
-const char *PUB_TOPIC = "subscribe/sensor"; // ✅  Gửi dữ liệu cảm biến
-const char *SUB_TOPIC = "publish";          // Flutter gửi lệnh xuống
+const char *PUB_TOPIC = "subscribe/sensor";  // ✅  Gửi dữ liệu cảm biến
+const char *SUB_TOPIC = "publish";           // Flutter gửi lệnh xuống
 const char *BROKER = "18043847e2864c2caba0ff6f607cbb8f.s1.eu.hivemq.cloud";
 const int PORT = 8883;
 const char *MQTT_USER = "smartiot";
@@ -45,6 +46,9 @@ bool stringComplete = false;
 Garden garden0 = Garden(0, 0, 0, 0, 0, 0, 0);
 Gate gate = Gate(0, 0, 0);
 
+volatile bool hasPendingCmd = false;
+byte pendingCmd[4] = { 0, 0, 0, 0 };
+
 float docao = 0.0f;
 int pump;
 
@@ -52,7 +56,7 @@ bool mqttCommandPending = false;
 
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
-SoftwareSerial Serial_ESP(13, 5); // RX D1 noi voi chan D4 - TX D6 noi voi chan 3
+SoftwareSerial Serial_ESP(13, 5);  // RX D1 noi voi chan D4 - TX D6 noi voi chan 3
 
 // ====== Khai báo ======
 void wifiSetup();
@@ -66,31 +70,29 @@ void Xulychuoi_node(String node_data);
 float getDistance();
 void DocKhoangCach();
 
-void XuLyCheDoGate(); // đọc gate.getCheDo(): "0" auto, "1" manual
+void XuLyCheDoGate();  // đọc gate.getCheDo(): "0" auto, "1" manual
 void setPumpAuto();
 void setPumpManual();
 
-void XuLyChuoiMQTT(String msg); // parse I..J (mode), F..G (maybom)
+void XuLyChuoiMQTT(String msg);  // parse I..J (mode), F..G (maybom)
 
 String JsonGarden0();
 void sendMQTT();
 void sendData();
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
   pinMode(PIN_AP, INPUT_PULLUP);
   pinMode(LED, OUTPUT);
 
-  if (digitalRead(PIN_AP) == LOW)
-  {
+  if (digitalRead(PIN_AP) == LOW) {
     WiFiManager wm;
     wm.resetSettings();
     Serial.println(" WiFi credentials cleared!");
   }
 
   wifiSetup();
-  NRFSetup(); // khởi tạo NRF24L01 sau khi WiFi đã sẵn sàng
+  NRFSetup();  // khởi tạo NRF24L01 sau khi WiFi đã sẵn sàng
 
   pinMode(PUMP, OUTPUT);
   pinMode(TRIG_PIN, OUTPUT);
@@ -98,49 +100,45 @@ void setup()
   digitalWrite(PUMP, LOW);
 }
 
-void NRFSetup()
-{
+void NRFSetup() {
   Serial.println("Khoi dong nRF24...");
-  if (!radio.begin())
-  {
+  if (!radio.begin()) {
     Serial.println("Khong tim thay module nRF24!");
-    while (1)
-      ;
+    while (1);
   }
-  Serial.println("Da khoi dong thanh cong!");
 
-  // --- Cấu hình giống STM32 ---
-  radio.setAutoAck(true);          // bật auto-ack (khớp STM)
-  radio.enableDynamicPayloads();   // cho phép payload linh hoạt
-  radio.setRetries(5, 15);         // retry delay 15×250µs, 5 lần
-  radio.setCRCLength(RF24_CRC_8);  // CRC 8-bit
-  radio.setChannel(40);            // channel = 40
-  radio.setDataRate(RF24_250KBPS); // tốc độ 250kbps
-  radio.setPALevel(RF24_PA_LOW);   // công suất vừa phải
+  radio.setAutoAck(false);              // khớp STM (AutoAck ON)
+  radio.setRetries(10,15);              // 5 * 250us, 15 lần
+  radio.setCRCLength(RF24_CRC_8);      // CRC 8-bit
+  radio.setChannel(40);                // kênh 40
+  radio.setDataRate(RF24_250KBPS);     // 250 kbps
+  radio.setPALevel(RF24_PA_LOW);       // công suất vừa
 
-  // --- Mở pipe nhận ---
-  radio.openReadingPipe(0, diachi); // pipe 0 để phản hồi ACK đúng TX_ADDR
-  radio.openWritingPipe(diachi);
-  radio.startListening(); // chuyển sang RX mode
+  radio.enableDynamicPayloads();       // BẬT DPL để nhận chuỗi biến độ dài
+  // KHÔNG đặt setPayloadSize() nữa, để DPL lo
 
-  // --- In ra cấu hình để kiểm tra ---
+  // ESP NHẬN uplink từ STM trên ADDR_UP (pipe 0)
+  radio.openReadingPipe(0, ADDR_UP);
+
+  // ESP GỬI downlink cho STM trên ADDR_DN
+  radio.openWritingPipe(ADDR_DN);
+
+  radio.startListening();              // mặc định ở RX
   radio.printDetails();
-
   Serial.println("Dang cho du lieu...");
 }
 
-void loop()
-{
+
+void loop() {
   // 1. Duy tri ket noi MQTT
   connectMQTT();
   // 3. Gui du lieu cam bien len MQTT dinh ky
-  sendData(); // gui thong tin nhiet do, do am, muc nuoc
+  sendData();  // gui thong tin nhiet do, do am, muc nuoc
 }
 
-void wifiSetup()
-{
+void wifiSetup() {
   WiFiManager wifiManager;
-  // wifiManager.resetSettings();
+  //wifiManager.resetSettings();
   wifiManager.autoConnect("ESP8266config");
   Serial.println("✅: WiFi Connected");
   Serial.print(wifiManager.getWiFiSSID(true));
@@ -153,53 +151,38 @@ void wifiSetup()
 }
 
 // Ham duoc goi khi co du lieu moi tu MQTT Broker
-void callback(char *topic, byte *payload, unsigned int length)
-{
+void callback(char *topic, byte *payload, unsigned int length) {
   String response;
-  for (int i = 0; i < length; i++)
-    response += (char)payload[i];
+  response.reserve(length);
+  for (unsigned int i = 0; i < length; i++) response += (char)payload[i];
 
-  Serial.print("📡 Topic: ");
-  Serial.println(topic);
+  Serial.print("📡 Topic: "); Serial.println(topic);
   Serial.println("📩 Payload: " + response);
 
-  // 1. Phan tich chuoi va cap nhat gia tri light, fan, pump, mode, gate
+  // 1) Parse -> cập nhật state mong muốn
   XuLyChuoiMQTT(response);
 
-  // 2. Danh dau co lenh moi (loop se gui NRF mot lan)
-  mqttCommandPending = true;
+  // 2) Chuẩn bị gói lệnh 4 byte cho STM (KHÔNG gửi ngay tại đây)
+  pendingCmd[0] = (byte)garden0.getPump();
+  pendingCmd[1] = (byte)garden0.getFan();
+  pendingCmd[2] = (byte)garden0.getLight();
+  pendingCmd[3] = (byte)garden0.getMode();
+  hasPendingCmd = true;              // ReadNRF_RX() sẽ gửi burst 3 phát
 
-  // 3. Gui phan hoi trang thai len MQTT de app cap nhat lai
-  if (response.indexOf("A") >= 0 && response.indexOf("B") >= 0)
-  {
-    sendControlMQTT("light", garden0.getLight()); // A..B = LIGHT
-    Serial.printf("MQTT Update → LIGHT: %d\n", garden0.getLight());
-  }
+  // 3) Phản hồi control để app cập nhật UI
+  if (response.indexOf("A")>=0 && response.indexOf("B")>=0) sendControlMQTT("light", garden0.getLight());
+  if (response.indexOf("B")>=0 && response.indexOf("C")>=0) sendControlMQTT("fan",   garden0.getFan());
+  if (response.indexOf("C")>=0 && response.indexOf("D")>=0) sendControlMQTT("pump",  garden0.getPump());
+  if (response.indexOf("D")>=0 && response.indexOf("E")>=0) sendControlMQTT("mode",  garden0.getMode());
 
-  if (response.indexOf("B") >= 0 && response.indexOf("C") >= 0)
-  {
-    sendControlMQTT("fan", garden0.getFan()); // B..C = FAN
-    Serial.printf("MQTT Update → FAN: %d\n", garden0.getFan());
-  }
-
-  if (response.indexOf("C") >= 0 && response.indexOf("D") >= 0)
-  {
-    sendControlMQTT("pump", garden0.getPump()); // C..D = PUMP
-    Serial.printf("MQTT Update → PUMP: %d\n", garden0.getPump());
-  }
-
-  if (response.indexOf("D") >= 0 && response.indexOf("E") >= 0)
-  {
-    sendControlMQTT("mode", garden0.getMode()); // D..E = MODE
-    Serial.printf("MQTT Update → MODE: %d\n", garden0.getMode());
-  }
+  Serial.printf("Queued CMD -> P=%d F=%d L=%d M=%d\n",
+                pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
 }
 
-void connectMQTT()
-{
+
+void connectMQTT() {
   // Kiểm tra kết nối WiFi
-  if (WiFi.status() != WL_CONNECTED)
-  {
+  if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi lost, reconnecting...");
     WiFi.reconnect();
     delay(500);
@@ -207,29 +190,23 @@ void connectMQTT()
   }
 
   // Kết nối MQTT nếu chưa kết nối
-  if (!client.connected())
-  {
+  if (!client.connected()) {
     reconnect();
   }
 
   client.loop();
 }
 
-void reconnect()
-{
-  while (!client.connected())
-  {
+void reconnect() {
+  while (!client.connected()) {
     Serial.println("🔗 Connecting to MQTT Broker... ");
-    if (client.connect(ID, MQTT_USER, MQTT_PASS))
-    {
+    if (client.connect(ID, MQTT_USER, MQTT_PASS)) {
       Serial.println("✅: Connected!");
       client.subscribe(SUB_TOPIC);
       Serial.print("📡 Subscribed to: ");
       Serial.println(SUB_TOPIC);
       Serial.println();
-    }
-    else
-    {
+    } else {
       Serial.print("Failed, state=");
       Serial.println(client.state());
       delay(2000);
@@ -237,14 +214,11 @@ void reconnect()
   }
 }
 
-void resetWifi()
-{
+void resetWifi() {
   WiFiManager wifiManager;
-  if (digitalRead(PIN_AP) == LOW)
-  {
+  if (digitalRead(PIN_AP) == LOW) {
     Serial.println("RESET ESP");
-    if (!wifiManager.startConfigPortal("ESP32configue"))
-    {
+    if (!wifiManager.startConfigPortal("ESP32configue")) {
       Serial.println("STA MODE");
       wifiManager.resetSettings();
       delay(2000);
@@ -253,8 +227,7 @@ void resetWifi()
   }
 }
 
-float getDistance()
-{
+float getDistance() {
   long duration;
   float distanceCm;
   digitalWrite(TRIG_PIN, LOW);
@@ -264,28 +237,24 @@ float getDistance()
   digitalWrite(TRIG_PIN, LOW);
   duration = pulseIn(ECHO_PIN, HIGH, TIME_OUT);
   if (duration == 0)
-    return -1;                  // timeout
-  return duration / 29.1 / 2.0; // cm
+    return -1;                   // timeout
+  return duration / 29.1 / 2.0;  // cm
 }
 
-void DocKhoangCach()
-{
+void DocKhoangCach() {
   static unsigned long lastRead = 0;
   if (millis() - lastRead < 2000)
-    return; // chỉ đo mỗi 2 giây
+    return;  // chỉ đo mỗi 2 giây
   lastRead = millis();
 
-  float distance = getDistance(); // khoảng cách từ cảm biến tới mặt nước (cm)
-  if (distance <= 0)
-  {
+  float distance = getDistance();  // khoảng cách từ cảm biến tới mặt nước (cm)
+  if (distance <= 0) {
     Serial.println("Echo timeout!");
-  }
-  else
-  {
+  } else {
     // Tính mực nước (độ cao nước trong bồn)
-    float mucNuoc = 33.0 - distance; // 33 cm là chiều cao bồn
+    float mucNuoc = 33.0 - distance;  // 33 cm là chiều cao bồn
     if (mucNuoc < 0)
-      mucNuoc = 0; // tránh âm nếu sensor nhiễu
+      mucNuoc = 0;  // tránh âm nếu sensor nhiễu
     gate.setDoCao(mucNuoc);
 
     Serial.print("💧 Muc nuoc (doCao): ");
@@ -297,67 +266,52 @@ void DocKhoangCach()
 // ===================================================
 //   Hàm xử lý chế độ Gate qua MQTT: I1J = manual, I0J = auto
 // ===================================================
-void XuLyCheDoGate()
-{
-  static bool lastMode = -1;         // Lưu chế độ trước đó (chưa có = -1)
-  int currentMode = gate.getCheDo(); // 0 = AUTO, 1 = MANUAL
+void XuLyCheDoGate() {
+  static bool lastMode = -1;          // Lưu chế độ trước đó (chưa có = -1)
+  int currentMode = gate.getCheDo();  // 0 = AUTO, 1 = MANUAL
 
   // Nếu chế độ thay đổi
-  if (currentMode != lastMode)
-  {
-    if (currentMode == 1)
-    {
+  if (currentMode != lastMode) {
+    if (currentMode == 1) {
       Serial.println("Gate: chuyển sang chế độ MANUAL");
-    }
-    else
-    {
+    } else {
       Serial.println("Gate: chuyển sang chế độ AUTO");
     }
-    lastMode = currentMode; // cập nhật lại giá trị cũ
+    lastMode = currentMode;  // cập nhật lại giá trị cũ
   }
 
   // Vẫn thực thi logic điều khiển như trước
-  if (currentMode == 1)
-  {
+  if (currentMode == 1) {
     setPumpManual();
-  }
-  else
-  {
+  } else {
     setPumpAuto();
   }
 }
 
-void setPumpAuto()
-{
-  if (gate.getDoCao() >= 28.0f)
-  {
-    digitalWrite(PUMP, LOW); // tắt bơm khi bồn đầy
-    gate.setMayBom("0");     // cập nhật trạng thái vào Gate
-  }
-  else if (gate.getDoCao() <= 5.0f)
-  {
-    digitalWrite(PUMP, HIGH); // bật bơm khi bồn cạn
+void setPumpAuto() {
+  if (gate.getDoCao() >= 28.0f) {
+    digitalWrite(PUMP, LOW);  // tắt bơm khi bồn đầy
+    gate.setMayBom("0");      // cập nhật trạng thái vào Gate
+  } else if (gate.getDoCao() <= 5.0f) {
+    digitalWrite(PUMP, HIGH);  // bật bơm khi bồn cạn
     gate.setMayBom("1");
   }
 }
 
-void setPumpManual()
-{
+void setPumpManual() {
   // Bảo vệ: nếu mực nước quá cao, luôn tắt bơm
-  if (gate.getDoCao() >= 28.0f)
-  {
+  if (gate.getDoCao() >= 28.0f) {
     digitalWrite(PUMP, LOW);
     gate.setMayBom("0");
     return;
   }
 
   // Đọc trạng thái điều khiển thủ công từ MQTT
-  bool manualState = gate.getMayBom(); // true = bật, false = tắt
+  bool manualState = gate.getMayBom();  // true = bật, false = tắt
   digitalWrite(PUMP, manualState ? HIGH : LOW);
 }
 
-void XuLyChuoiMQTT(String msg)
-{
+void XuLyChuoiMQTT(String msg) {
   int idxA = msg.indexOf("A");
   int idxB = msg.indexOf("B");
   int idxC = msg.indexOf("C");
@@ -393,93 +347,118 @@ void XuLyChuoiMQTT(String msg)
 // ===================================================
 // 1. GUI LENH XUONG NODE (TX)
 // ===================================================
-void ReadNRF_TX()
-{
-  radio.stopListening();
+// void ReadNRF_TX() {
+//   //radio.stopListening();
+//   //delayMicroseconds(150);
+//   //radio.flush_tx();
+
+//   pendingCmd[0] = (byte)garden0.getPump();
+//   pendingCmd[1] = (byte)garden0.getFan();
+//   pendingCmd[2] = (byte)garden0.getLight();
+//   pendingCmd[3] = (byte)garden0.getMode();
+
+//   hasPendingCmd = true;
+
+//   if (hasPendingCmd) {
+//     radio.stopListening();
+//     delayMicroseconds(150);
+
+//     //Serial.printf("[TX CMD] Pump=%d | Fan=%d | Light=%d | Mode=%d\n",
+//     //              pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
+//     bool ok = false;
+//     for (int k = 0; k < 3; ++k) {
+//       ok = radio.write(pendingCmd, 4);
+//       Serial.printf("[TX CMD %d/3] P=%d F=%d L=%d M=%d\n",
+//                   k+1, pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
+//       // Nếu AutoAck=false thì 'ok' không có nhiều ý nghĩa -> bỏ qua
+//       // Nếu AutoAck=true, bạn có thể break sớm khi ok==true
+//       delay(1000);  // 8–12 ms giữa các lần bắn (đủ để STM đọc & clear FIFO)
+//     }
+
+//     delay(1000);
+//     radio.startListening();
+
+//     Serial.println(ok ? "[TX CMD] OK" : "[TX CMD] FAIL");
+
+//     // Du OK hay FAIL, ha co (khong spam). Neu FAIL, user bam lai se co pending moi
+//     hasPendingCmd = false;
+//   }
+// }
+
+static void sendPendingNRFCmdBurst(uint8_t times = 3, uint16_t gap_ms = 12) {
+  radio.stopListening();           // sang TX
   delayMicroseconds(150);
-  radio.flush_tx(); 
 
-  static byte cmd[4] = {
-      (byte)garden0.getPump(),
-      (byte)garden0.getFan(),
-      (byte)garden0.getLight(),
-      (byte)garden0.getMode()};
-  Serial.printf("CMD raw bytes (Pump Fan Light Mode): %d %d %d %d\n",
-                cmd[0], cmd[1], cmd[2], cmd[3]);
-  const uint8_t MAX_RETRY = 3;
   bool ok = false;
-
-  for (uint8_t i = 0; i < MAX_RETRY; i++)
-  {
-    ok = radio.write(cmd, sizeof(cmd));
-    if (ok)
-      break; // thành công -> thoát vòng lặp
-    Serial.printf("Retry %d/3 failed...\n", i + 1);
-    delay(20); // đợi nhẹ 20ms trước khi gửi lại
+  for (uint8_t i = 0; i < times; ++i) {
+    ok = radio.write(pendingCmd, 4);  // 4 byte: pump, fan, light, mode
+    Serial.printf("[TX CMD %u/%u] P=%u F=%u L=%u M=%u\n",
+                  (unsigned)i+1, (unsigned)times,
+                  pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
+    delay(gap_ms);                 // để STM kịp RX/clear FIFO
   }
 
-  Serial.printf("ESP→STM STATUS: %s\n", ok ? "✅ OK" : "🚫 FAIL");
-  // Serial.printf("CMD raw bytes (Pump Fan Light Mode): %d %d %d %d\n",
-  //               cmd[0], cmd[1], cmd[2], cmd[3]);
-
   delayMicroseconds(150);
-  radio.startListening(); // quay lại RX mode
+  radio.startListening();          // về RX
+  Serial.println(ok ? "[TX CMD] OK" : "[TX CMD] FAIL");
 }
+
 
 // ===================================================
 // 2. NHAN DU LIEU CAM BIEN TU NODE (RX)
 // ===================================================
-void ReadNRF_RX()
-{
-  // Luôn ở chế độ lắng nghe để nhận dữ liệu cảm biến
-  if (!radio.available())
-    return;
+void ReadNRF_RX() {
+  while (radio.available()) {
+    uint8_t len = radio.getDynamicPayloadSize();
+    if (len == 0 || len > 31) {        // gói lỗi -> xả và tiếp
+      radio.flush_rx();
+      continue;
+    }
 
-  char buffer[32] = {0};
-  radio.read(&buffer, radio.getDynamicPayloadSize());
+    char buffer[32] = {0};             // zero-init để có '\0'
+    radio.read(buffer, len);
 
-  String raw = String(buffer);
-  int startIdx = raw.indexOf('<');
-  int endIdx = raw.indexOf('>');
-  if (startIdx < 0 || endIdx <= startIdx)
-    return;
+    // Chỉ nhận các khung text bắt đầu bằng '<'
+    if (buffer[0] != '<') {
+      // có thể là gói điều khiển 4B / nhiễu -> bỏ qua
+      continue;
+    }
 
-  String data = raw.substring(startIdx + 1, endIdx);
+    // Đảm bảo null-terminate theo đúng độ dài
+    uint8_t n = (len < 31) ? len : 31;
+    buffer[n] = '\0';
 
-  float t = 0, h = 0, s = 0;
+    // Parse bằng C (tránh phụ thuộc String(buffer,len))
+    const char* p1 = strchr(buffer, '<');
+    const char* p2 = strchr(buffer, '>');
+    if (!p1 || !p2 || p2 <= p1) {
+      // khung chưa trọn vẹn -> bỏ qua im lặng
+      continue;
+    }
 
-  if (sscanf(data.c_str(), "%f %f %f",
-             &t, &h, &s) == 3)
-  {
-
-    garden0.setNhietDo(t);
-    garden0.setDoAm(h);
-    garden0.setDoAmDat(s);
-
-    Serial.printf("Node data: T=%.1f | H=%.1f | Soil=%.1f\n",
-                  t, h, s);
+    float t = 0, h = 0, s = 0;
+    if (sscanf(p1 + 1, "%f %f %f", &t, &h, &s) == 3) {
+      garden0.setNhietDo(t);
+      garden0.setDoAm(h);
+      garden0.setDoAmDat(s);
+      Serial.printf("Node data: T=%.1f | H=%.1f | Soil=%.1f\n", t, h, s);
+    }
+    // else: không in lỗi để khỏi spam log
   }
-  else
-  {
-    Serial.printf("Parse fail: %s\n", data.c_str());
-  }
 
-  // =============================================
-  // 🔁 GỬI LỆNH MQTT NGAY SAU KHI NHẬN GÓI STM
-  // =============================================
-  if (mqttCommandPending)
-  {
-    delay(80); // cho STM chuyển sang RX
-    ReadNRF_TX();
-    mqttCommandPending = false;
+  if (hasPendingCmd) {
+    delay(10);
+    sendPendingNRFCmdBurst(3, 12);
+    hasPendingCmd = false;
   }
 }
+
+
 
 // -------------------------------------------------------
 // Đóng gói dữ liệu cảm biến + trạng thái thành chuỗi JSON
 // -------------------------------------------------------
-String JsonGarden0()
-{
+String JsonGarden0() {
   String json = "{";
   json += "\"nhietdo\": " + String(garden0.getNhietDo()) + ",";
   json += "\"doam\": " + String(garden0.getDoAm()) + ",";
@@ -498,29 +477,24 @@ String JsonGarden0()
 }
 
 // Dong goi va gui len MQTT broker
-void sendSensorMQTT()
-{
+void sendSensorMQTT() {
   client.publish("subscribe/sensor", JsonGarden0().c_str());
 }
 
-void sendControlMQTT(const String &key, int value)
-{
+void sendControlMQTT(const String &key, int value) {
   String msg = "{ \"" + key + "\": " + String(value) + " }";
   client.publish("subscribe/control", msg.c_str());
 }
 
-void sendMQTT()
-{
+void sendMQTT() {
   client.publish(PUB_TOPIC, JsonGarden0().c_str());
 }
 
-void sendData()
-{
+void sendData() {
   static unsigned long last = 0;
-  ReadNRF_RX(); // ✅ đọc trước khi gửi
+  ReadNRF_RX();  // ✅ đọc trước khi gửi
 
-  if (millis() - last >= 2000)
-  {
+  if (millis() - last >= 2000) {
     client.publish("subscribe/sensor", JsonGarden0().c_str());
     DocKhoangCach();
     XuLyCheDoGate();

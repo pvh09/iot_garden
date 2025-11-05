@@ -183,9 +183,10 @@ void Read_NRF(void (*Control_Device)(Garden *))
 {
     static uint32_t last_tx_ms = 0;
     uint32_t now = HAL_GetTick();
-    if (now - last_tx_ms < 2000) return;   // gửi cảm biến mỗi 2s
+    if (now - last_tx_ms < 5000) return;   // gửi cảm biến mỗi 2s
     last_tx_ms = now;
 
+	
     // --- TX uplink ---
     nrf24_stop_listen();
     HAL_Delay(2);
@@ -196,14 +197,25 @@ void Read_NRF(void (*Control_Device)(Garden *))
 		nrf24_transmit_no_ack((uint8_t*)msg, strlen(msg)+1);
     HAL_Delay(2);
     nrf24_clear_tx_ds(); nrf24_clear_max_rt(); nrf24_flush_tx();
+	
 
     // --- RX window 150 ms để nhận lệnh ---
-	
+	nrf24_flush_rx();               // ✅ xả rác còn tồn
+nrf24_clear_rx_dr();
     nrf24_listen(); // pipe1, payload cố định 4 byte
     uint8_t rx_buf[4];
     uint32_t t0 = HAL_GetTick();
-    while (HAL_GetTick()-t0 < 200) {
+    while (HAL_GetTick()-t0 < 350) {
         if (nrf24_data_available()) {
+					uint8_t wid = nrf24_r_pld_wid();   // ✅ đọc độ dài payload thực
+        if (wid != 4) {   
+						sendText("Dump Data\n");					// gói rỗng/nhiễu → bỏ
+            // đọc/xả cho sạch FIFO rồi tiếp
+            uint8_t dump[32];
+            if (wid > 0 && wid <= 32) nrf24_receive(dump, wid);
+            nrf24_clear_rx_dr();
+            continue;
+        }
             nrf24_receive(rx_buf, 4);        // không dùng r_pld_wid nữa
             nrf24_clear_rx_dr();
 
@@ -248,7 +260,7 @@ void Read_All_Sensor(void)
   uint32_t now = HAL_GetTick();
 
   // chi doc moi 5 giay
-  if (last_ms != 0 && (now - last_ms) < 2000)
+  if (last_ms != 0 && (now - last_ms) < 4000)
     return;
   last_ms = now;
 

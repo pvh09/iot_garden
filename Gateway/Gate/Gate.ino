@@ -8,7 +8,7 @@
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h>  //https://github.com/tzapu/WiFiManager
 #include <PubSubClient.h>
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 #include "Model.h"
 #include <WiFiClientSecure.h>
 
@@ -20,9 +20,9 @@
 #define CE_PIN 4   // GPIO4
 #define CSN_PIN 5  // GPIO5
 
-RF24 radio(CE_PIN, CSN_PIN);                         // CE=D2, CSN=D1
-const byte ADDR_UP[5] = { 'N','O','D','E','1' };  // STM -> ESP
-const byte ADDR_DN[5] = { 'G','A','T','E','1' };  // ESP -> STM
+RF24 radio(CE_PIN, CSN_PIN);                          // CE=D2, CSN=D1
+const byte ADDR_UP[5] = { 'N', 'O', 'D', 'E', '1' };  // STM -> ESP
+const byte ADDR_DN[5] = { 'G', 'A', 'T', 'E', '1' };  // ESP -> STM
 
 #define LED 2
 #define PIN_AP 0
@@ -56,7 +56,7 @@ bool mqttCommandPending = false;
 
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
-SoftwareSerial Serial_ESP(13, 5);  // RX D1 noi voi chan D4 - TX D6 noi voi chan 3
+//SoftwareSerial Serial_ESP(13, 5);  // RX D1 noi voi chan D4 - TX D6 noi voi chan 3
 
 // ====== Khai báo ======
 void wifiSetup();
@@ -104,17 +104,18 @@ void NRFSetup() {
   Serial.println("Khoi dong nRF24...");
   if (!radio.begin()) {
     Serial.println("Khong tim thay module nRF24!");
-    while (1);
+    while (1)
+      ;
   }
 
-  radio.setAutoAck(false);              // khớp STM (AutoAck ON)
-  radio.setRetries(10,15);              // 5 * 250us, 15 lần
-  radio.setCRCLength(RF24_CRC_8);      // CRC 8-bit
-  radio.setChannel(40);                // kênh 40
-  radio.setDataRate(RF24_250KBPS);     // 250 kbps
-  radio.setPALevel(RF24_PA_LOW);       // công suất vừa
+  radio.setAutoAck(false);          // khớp STM (AutoAck ON)
+  radio.setRetries(10, 15);         // 5 * 250us, 15 lần
+  radio.setCRCLength(RF24_CRC_8);   // CRC 8-bit
+  radio.setChannel(40);             // kênh 40
+  radio.setDataRate(RF24_250KBPS);  // 250 kbps
+  radio.setPALevel(RF24_PA_LOW);    // công suất vừa
 
-  radio.enableDynamicPayloads();       // BẬT DPL để nhận chuỗi biến độ dài
+  radio.enableDynamicPayloads();  // BẬT DPL để nhận chuỗi biến độ dài
   // KHÔNG đặt setPayloadSize() nữa, để DPL lo
 
   // ESP NHẬN uplink từ STM trên ADDR_UP (pipe 0)
@@ -123,7 +124,7 @@ void NRFSetup() {
   // ESP GỬI downlink cho STM trên ADDR_DN
   radio.openWritingPipe(ADDR_DN);
 
-  radio.startListening();              // mặc định ở RX
+  radio.startListening();  // mặc định ở RX
   radio.printDetails();
   Serial.println("Dang cho du lieu...");
 }
@@ -156,7 +157,8 @@ void callback(char *topic, byte *payload, unsigned int length) {
   response.reserve(length);
   for (unsigned int i = 0; i < length; i++) response += (char)payload[i];
 
-  Serial.print("📡 Topic: "); Serial.println(topic);
+  Serial.print("📡 Topic: ");
+  Serial.println(topic);
   Serial.println("📩 Payload: " + response);
 
   // 1) Parse -> cập nhật state mong muốn
@@ -167,13 +169,13 @@ void callback(char *topic, byte *payload, unsigned int length) {
   pendingCmd[1] = (byte)garden0.getFan();
   pendingCmd[2] = (byte)garden0.getLight();
   pendingCmd[3] = (byte)garden0.getMode();
-  hasPendingCmd = true;              // ReadNRF_RX() sẽ gửi burst 3 phát
+  hasPendingCmd = true;  // ReadNRF_RX() sẽ gửi burst 3 phát
 
   // 3) Phản hồi control để app cập nhật UI
-  if (response.indexOf("A")>=0 && response.indexOf("B")>=0) sendControlMQTT("light", garden0.getLight());
-  if (response.indexOf("B")>=0 && response.indexOf("C")>=0) sendControlMQTT("fan",   garden0.getFan());
-  if (response.indexOf("C")>=0 && response.indexOf("D")>=0) sendControlMQTT("pump",  garden0.getPump());
-  if (response.indexOf("D")>=0 && response.indexOf("E")>=0) sendControlMQTT("mode",  garden0.getMode());
+  if (response.indexOf("A") >= 0 && response.indexOf("B") >= 0) sendControlMQTT("light", garden0.getLight());
+  if (response.indexOf("B") >= 0 && response.indexOf("C") >= 0) sendControlMQTT("fan", garden0.getFan());
+  if (response.indexOf("C") >= 0 && response.indexOf("D") >= 0) sendControlMQTT("pump", garden0.getPump());
+  if (response.indexOf("D") >= 0 && response.indexOf("E") >= 0) sendControlMQTT("mode", garden0.getMode());
 
   Serial.printf("Queued CMD -> P=%d F=%d L=%d M=%d\n",
                 pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
@@ -345,69 +347,12 @@ void XuLyChuoiMQTT(String msg) {
 }
 
 // ===================================================
-// 1. GUI LENH XUONG NODE (TX)
-// ===================================================
-// void ReadNRF_TX() {
-//   //radio.stopListening();
-//   //delayMicroseconds(150);
-//   //radio.flush_tx();
-
-//   pendingCmd[0] = (byte)garden0.getPump();
-//   pendingCmd[1] = (byte)garden0.getFan();
-//   pendingCmd[2] = (byte)garden0.getLight();
-//   pendingCmd[3] = (byte)garden0.getMode();
-
-//   hasPendingCmd = true;
-
-//   if (hasPendingCmd) {
-//     radio.stopListening();
-//     delayMicroseconds(150);
-
-//     //Serial.printf("[TX CMD] Pump=%d | Fan=%d | Light=%d | Mode=%d\n",
-//     //              pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
-//     bool ok = false;
-//     for (int k = 0; k < 3; ++k) {
-//       ok = radio.write(pendingCmd, 4);
-//       Serial.printf("[TX CMD %d/3] P=%d F=%d L=%d M=%d\n",
-//                   k+1, pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
-//       // Nếu AutoAck=false thì 'ok' không có nhiều ý nghĩa -> bỏ qua
-//       // Nếu AutoAck=true, bạn có thể break sớm khi ok==true
-//       delay(1000);  // 8–12 ms giữa các lần bắn (đủ để STM đọc & clear FIFO)
-//     }
-
-//     delay(1000);
-//     radio.startListening();
-
-//     Serial.println(ok ? "[TX CMD] OK" : "[TX CMD] FAIL");
-
-//     // Du OK hay FAIL, ha co (khong spam). Neu FAIL, user bam lai se co pending moi
-//     hasPendingCmd = false;
-//   }
-// }
-
-static void sendPendingNRFCmdBurst(uint8_t times = 3, uint16_t gap_ms = 12) {
-  radio.stopListening();           // sang TX
-  delayMicroseconds(150);
-
-  bool ok = false;
-  for (uint8_t i = 0; i < times; ++i) {
-    ok = radio.write(pendingCmd, 4);  // 4 byte: pump, fan, light, mode
-    Serial.printf("[TX CMD %u/%u] P=%u F=%u L=%u M=%u\n",
-                  (unsigned)i+1, (unsigned)times,
-                  pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
-    delay(gap_ms);                 // để STM kịp RX/clear FIFO
-  }
-
-  delayMicroseconds(150);
-  radio.startListening();          // về RX
-  Serial.println(ok ? "[TX CMD] OK" : "[TX CMD] FAIL");
-}
-
-
-// ===================================================
 // 2. NHAN DU LIEU CAM BIEN TU NODE (RX)
 // ===================================================
 void ReadNRF_RX() {
+  static unsigned long lastUplinkMs = 0;
+
+  // 1) Đọc hết uplink (có thể có nhiều gói back-to-back)
   while (radio.available()) {
     uint8_t len = radio.getDynamicPayloadSize();
     if (len == 0 || len > 31) {        // gói lỗi -> xả và tiếp
@@ -420,36 +365,53 @@ void ReadNRF_RX() {
 
     // Chỉ nhận các khung text bắt đầu bằng '<'
     if (buffer[0] != '<') {
-      // có thể là gói điều khiển 4B / nhiễu -> bỏ qua
-      continue;
+      continue;                        // không phải uplink cảm biến -> bỏ qua
     }
 
     // Đảm bảo null-terminate theo đúng độ dài
     uint8_t n = (len < 31) ? len : 31;
     buffer[n] = '\0';
 
-    // Parse bằng C (tránh phụ thuộc String(buffer,len))
+    // Parse "<T H S>"
     const char* p1 = strchr(buffer, '<');
     const char* p2 = strchr(buffer, '>');
     if (!p1 || !p2 || p2 <= p1) {
-      // khung chưa trọn vẹn -> bỏ qua im lặng
       continue;
     }
 
-    float t = 0, h = 0, s = 0;
+    float t=0, h=0, s=0;
     if (sscanf(p1 + 1, "%f %f %f", &t, &h, &s) == 3) {
       garden0.setNhietDo(t);
       garden0.setDoAm(h);
       garden0.setDoAmDat(s);
       Serial.printf("Node data: T=%.1f | H=%.1f | Soil=%.1f\n", t, h, s);
+
+      // ✅ ĐÁNH DẤU THỜI ĐIỂM VỪA NHẬN UPLINK
+      lastUplinkMs = millis();
     }
-    // else: không in lỗi để khỏi spam log
   }
 
-  if (hasPendingCmd) {
-    delay(10);
-    sendPendingNRFCmdBurst(3, 12);
-    hasPendingCmd = false;
+  // 2) Nếu có lệnh chờ và vẫn còn trong "cửa sổ" RX của STM -> bắn ngay
+  unsigned long now = millis();
+  if (hasPendingCmd && (now - lastUplinkMs) <= 180 && (now - lastUplinkMs) >= 3) {
+    delay(10);                         // cho STM chuyển hẳn sang RX
+    radio.stopListening();
+    delayMicroseconds(150);
+
+    bool ok = false;
+    Serial.printf("[CERR uplink] P=%u F=%u L=%u M=%u\n",pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
+    for (uint8_t i = 0; i < 5; ++i) {  // burst 5 phát cho chắc
+      ok = radio.write(pendingCmd, 4); // 4 byte: pump, fan, light, mode
+      Serial.printf("[TX-after-uplink %u/5] P=%u F=%u L=%u M=%u (dt=%lums)\n",
+                    (unsigned)i+1, pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3],
+                    millis() - lastUplinkMs);
+      delay(12);
+    }
+
+    delayMicroseconds(150);
+    radio.startListening();
+    Serial.println(ok ? "[TX CMD] OK" : "[TX CMD] FAIL");
+    hasPendingCmd = false;             // clear cờ sau khi đã bắn
   }
 }
 
@@ -494,7 +456,7 @@ void sendData() {
   static unsigned long last = 0;
   ReadNRF_RX();  // ✅ đọc trước khi gửi
 
-  if (millis() - last >= 2000) {
+  if (millis() - last >= 5000) {
     client.publish("subscribe/sensor", JsonGarden0().c_str());
     DocKhoangCach();
     XuLyCheDoGate();

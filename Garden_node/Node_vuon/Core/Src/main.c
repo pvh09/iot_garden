@@ -46,8 +46,8 @@ const float ADC_WET = 1200.0f; // Gia tri khi dat rat uot
 const float ADC_DRY = 3800.0f; // Gia tri khi dat kho
 
 /* NRF24 address */
-static uint8_t ADDR_UP[5] = {'N','O','D','E','1'}; // STM -> ESP (sensor uplink)
-static uint8_t ADDR_DN[5] = {'G','A','T','E','1'}; // ESP -> STM (command downlink)
+static uint8_t ADDR_UP[5] = {'N', 'O', 'D', 'E', '1'}; // STM -> ESP (sensor uplink)
+static uint8_t ADDR_DN[5] = {'G', 'A', 'T', 'E', '1'}; // ESP -> STM (downlink)
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -101,18 +101,11 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
 
-  // --- Cho DHT khoi dong ---
   sendText("Cho DHT khoi dong...\r\n");
   HAL_Delay(2000); // DHT11 can it nhat 1s sau khi cap nguon
 
   sendText("Bat dau cau hinh nRF24...\r\n");
   NRF24_Config_Common();
-	uint8_t feat = nrf24_r_reg(FEATURE, 1);
-	uint8_t dynp = nrf24_r_reg(DYNPD, 1);
-	char buf[64];
-	sprintf(buf, "[DEBUG] FEATURE=0x%02X DYNPD=0x%02X\r\n", feat, dynp);
-	sendText(buf);
-	sendText("Khoi dong hoan tat - NRF san sang.\r\n");
 
   // --- Gia tri khoi tao ---
   garden1.mode = 0; // 0 = AUTO, 1 = MANUAL
@@ -130,7 +123,6 @@ int main(void)
         Read_NRF(Control_Device_Manual);
         HAL_Delay(100);
       }
-      sendText("Thoat khoi che do MANUAL\r\n");
     }
     else
     {
@@ -141,105 +133,102 @@ int main(void)
         Read_NRF(Control_Device_Auto);
         HAL_Delay(1000);
       }
-      sendText("Thoat khoi che do AUTO\r\n");
     }
   }
 }
 
 void NRF24_Config_Common(void)
 {
-    nrf24_init();
-    nrf24_pwr_up();
+  nrf24_init();
+  nrf24_pwr_up();
 
-    nrf24_set_addr_width(5);
-    nrf24_set_channel(40);
-    nrf24_data_rate(_250kbps);
-    nrf24_tx_pwr(n18dbm);
-    nrf24_set_crc(en_crc, _1byte);
+  nrf24_set_addr_width(5);
+  nrf24_set_channel(40);
+  nrf24_data_rate(_250kbps);
+  nrf24_tx_pwr(n18dbm);
+  nrf24_set_crc(en_crc, _1byte);
 
-    // KHÔNG dùng DPL để tránh width=0
-    nrf24_dpl(enable);
-    nrf24_set_rx_dpl(0, enable);
-    nrf24_set_rx_dpl(1, enable);
+  nrf24_dpl(enable);
+  nrf24_set_rx_dpl(0, enable);
+  nrf24_set_rx_dpl(1, enable);
 
-    // Auto-ACK + retry để chống rơi gói
-    nrf24_auto_ack_all(disable);
-    //nrf24_auto_ack(0, enable);
-    nrf24_auto_retr_delay(10);
-    nrf24_auto_retr_limit(15);
+  nrf24_auto_ack_all(disable);
+  nrf24_auto_retr_delay(10);
+  nrf24_auto_retr_limit(15);
 
-    // Uplink: STM -> ESP
-    nrf24_open_tx_pipe(ADDR_UP);
+  // Uplink: STM -> ESP
+  nrf24_open_tx_pipe(ADDR_UP);
 
-    // Downlink: ESP -> STM (nhận đúng 4 byte)
-    nrf24_open_rx_pipe(1, ADDR_DN);
-    nrf24_pipe_pld_size(1, 4);
+  // Downlink: ESP -> STM (nhận 4 byte)
+  nrf24_open_rx_pipe(1, ADDR_DN);
+  nrf24_pipe_pld_size(1, 4);
 
-    HAL_Delay(50);
+  HAL_Delay(50);
 }
-
 
 void Read_NRF(void (*Control_Device)(Garden *))
 {
-    static uint32_t last_tx_ms = 0;
-    uint32_t now = HAL_GetTick();
-    if (now - last_tx_ms < 5000) return;   // gửi cảm biến mỗi 2s
-    last_tx_ms = now;
+  static uint32_t last_tx_ms = 0;
+  uint32_t now = HAL_GetTick();
+  if (now - last_tx_ms < 5000)
+    return;
+  last_tx_ms = now;
 
-	
-    // --- TX uplink ---
-    nrf24_stop_listen();
-    HAL_Delay(2);
+  // --- TX uplink ---
+  nrf24_stop_listen();
+  HAL_Delay(2);
 
-    char msg[64];
-    sprintf(msg, "<%.1f %.1f %.1f>", garden1.nhietDo, garden1.doAm, garden1.doAmDat);
-    nrf24_en_dyn_ack(enable);                 // bật quyền "no_ack" nếu lib cần
-		nrf24_transmit_no_ack((uint8_t*)msg, strlen(msg)+1);
-    HAL_Delay(2);
-    nrf24_clear_tx_ds(); nrf24_clear_max_rt(); nrf24_flush_tx();
-	
+  char msg[64];
+  sprintf(msg, "<%.1f %.1f %.1f>", garden1.nhietDo, garden1.doAm, garden1.doAmDat);
+  nrf24_en_dyn_ack(enable);
+  nrf24_transmit_no_ack((uint8_t *)msg, strlen(msg) + 1);
+  HAL_Delay(2);
+  nrf24_clear_tx_ds();
+  nrf24_clear_max_rt();
+  nrf24_flush_tx();
 
-    // --- RX window 150 ms để nhận lệnh ---
-	nrf24_flush_rx();               // ✅ xả rác còn tồn
-nrf24_clear_rx_dr();
-    nrf24_listen(); // pipe1, payload cố định 4 byte
-    uint8_t rx_buf[4];
-    uint32_t t0 = HAL_GetTick();
-    while (HAL_GetTick()-t0 < 350) {
-        if (nrf24_data_available()) {
-					uint8_t wid = nrf24_r_pld_wid();   // ✅ đọc độ dài payload thực
-        if (wid != 4) {   
-						sendText("Dump Data\n");					// gói rỗng/nhiễu → bỏ
-            // đọc/xả cho sạch FIFO rồi tiếp
-            uint8_t dump[32];
-            if (wid > 0 && wid <= 32) nrf24_receive(dump, wid);
-            nrf24_clear_rx_dr();
-            continue;
-        }
-            nrf24_receive(rx_buf, 4);        // không dùng r_pld_wid nữa
-            nrf24_clear_rx_dr();
+  nrf24_flush_rx();
+  nrf24_clear_rx_dr();
+  nrf24_listen(); // pipe1, payload cố định 4 byte
+  uint8_t rx_buf[4];
+  uint32_t t0 = HAL_GetTick();
+  while (HAL_GetTick() - t0 < 350)
+  {
+    if (nrf24_data_available())
+    {
+      uint8_t wid = nrf24_r_pld_wid(); // đọc độ dài payload thực
+      if (wid != 4)
+      {
+        sendText("Dump Data\n");
+        // đọc/xả cho sạch FIFO rồi tiếp
+        uint8_t dump[32];
+        if (wid > 0 && wid <= 32)
+          nrf24_receive(dump, wid);
+        nrf24_clear_rx_dr();
+        continue;
+      }
+      nrf24_receive(rx_buf, 4);
+      nrf24_clear_rx_dr();
 
-            // map lệnh
-            garden1.pump  = rx_buf[0];
-            garden1.fan   = rx_buf[1];
-            garden1.light = rx_buf[2];
-            garden1.mode  = rx_buf[3];
+      garden1.pump = rx_buf[0];
+      garden1.fan = rx_buf[1];
+      garden1.light = rx_buf[2];
+      garden1.mode = rx_buf[3];
 
-            char info[96];
-            sprintf(info, "[RECV]: P=%d F=%d L=%d M=%d\r\n",
-                    garden1.pump, garden1.fan, garden1.light, garden1.mode);
-            sendText(info);
-            break;
-        }
-        HAL_Delay(1);
+      char info[96];
+      sprintf(info, "[RECV]: P=%d F=%d L=%d M=%d\r\n",
+              garden1.pump, garden1.fan, garden1.light, garden1.mode);
+      sendText(info);
+      break;
     }
-    nrf24_stop_listen();
-    nrf24_flush_rx();
+    HAL_Delay(1);
+  }
+  nrf24_stop_listen();
+  nrf24_flush_rx();
 
-    // --- Điều khiển thiết bị ---
-    Control_Device(&garden1);
+  // --- Điều khiển thiết bị ---
+  Control_Device(&garden1);
 }
-
 
 void ProcessNRFMessage(Garden *g, uint8_t *data)
 {
@@ -338,7 +327,6 @@ void Control_Device_Auto(Garden *g)
     HAL_GPIO_WritePin(GPIOB, LIGHT_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(GPIOB, FAN_PIN, GPIO_PIN_RESET);
 
-    // Ghi lai vao bien trang thai
     g->light = 1;
     g->fan = 0;
   }
@@ -588,9 +576,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  // M?c d?nh k�o th?p
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0 | GPIO_PIN_1, GPIO_PIN_RESET);
-  // Tat het thiet bi luc khoi dong
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14, GPIO_PIN_SET);
 
   // CE (PA4) & CSN (PA3)

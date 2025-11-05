@@ -7,12 +7,12 @@ import 'package:solar/MQTT/mqtt_app_state.dart';
 import 'package:solar/Package/animatedbutton.dart';
 import 'package:lottie/lottie.dart';
 
-class NodePage extends StatefulWidget{
+class NodePage extends StatefulWidget {
   @override
-  _NodePageState createState()  => _NodePageState();
+  _NodePageState createState() => _NodePageState();
 }
 
-class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
+class _NodePageState extends State<NodePage> with TickerProviderStateMixin {
   late MQTT _mqtt;
   late MQTTAppState _currentState;
   late final AnimationController _lightController;
@@ -35,37 +35,35 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
     final MQTTAppState currentState = Provider.of<MQTTAppState>(context);
     _currentState = currentState;
     return Scaffold(
-        appBar: AppBar(
-            centerTitle: true,
-            backgroundColor: const Color(0xFF292636),
-            foregroundColor: Colors.white, // đổi màu icon và chữ AppBar thành trắng
-            iconTheme: const IconThemeData(color: Colors.white),
-            title: const Text(
-              'Garden 1',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      appBar: AppBar(
+        centerTitle: true,
+        backgroundColor: const Color(0xFF292636),
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Garden 1',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 15),
+            child: Consumer<MQTTAppState>(
+              builder: (context, state, _) =>
+                  Icon(state.getIconData, color: Colors.white, size: 26),
             ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 15), // đẩy icon sang trái 15px
-              child: Consumer<MQTTAppState>(
-                builder: (context, state, _) => Icon(
-                  state.getIconData,
-                  color: Colors.white,
-                  size: 26, // tùy chọn: chỉnh kích thước icon cho cân
-                ),
-              ),
-            ),
-          ]),
-        body: SingleChildScrollView(
-          child: Column(
-            children: <Widget>[
-              Padding(padding: EdgeInsets.all(10)),
-              _buildTabView(),
-              _buildAuto(),
-              _buildButton()
-            ],
           ),
-        )
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: <Widget>[
+            Padding(padding: EdgeInsets.all(10)),
+            _buildTabView(),
+            _buildAuto(),
+            _buildButton(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -88,8 +86,8 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
                     color: Colors.blue,
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  labelColor: Colors.white,              // màu chữ khi tab được chọn
-                  unselectedLabelColor: Colors.white70,  // màu chữ khi chưa chọn (mờ hơn)
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
                   tabs: const [
                     Tab(
                       child: Text(
@@ -131,11 +129,7 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
               child: SizedBox(
                 height: 300,
                 child: TabBarView(
-                  children: [
-                    _buildNhietDo(),
-                    _buildDoAm(),
-                    _buildDoAmDat(),
-                  ],
+                  children: [_buildNhietDo(), _buildDoAm(), _buildDoAmDat()],
                 ),
               ),
             ),
@@ -144,7 +138,6 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
       ),
     );
   }
-
 
   Widget _buildAuto() {
     return AnimatedToggle(
@@ -196,9 +189,9 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
     );
   }
 
-
-  Widget _buildNhietDo(){
-    final double nhietDo = (_mqtt.getAppState.getGarden.getNhietDo ?? 0).toDouble();
+  Widget _buildNhietDo() {
+    final double nhietDo = (_mqtt.getAppState.getGarden.getNhietDo ?? 0)
+        .toDouble();
     return Chart(data: nhietDo);
   }
 
@@ -207,147 +200,167 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
       height: 100,
       child: Stack(
         children: [
+          Center(child: Lottie.asset('assets/water.json')),
+          Center(child: Lottie.asset('assets/in.json')),
           Center(
-            child: Lottie.asset('assets/water.json'),
-          ),
-          Center(
-            child: Lottie.asset('assets/in.json'),
-          ),
-          Center(
-            child: Text('${(_mqtt.getAppState.getGarden.getDoAm ?? 0).toDouble()}%',
+            child: Text(
+              '${(_mqtt.getAppState.getGarden.getDoAm ?? 0).toDouble()}%',
               style: TextStyle(
                 color: Color(0xFF0D3770),
                 fontSize: 50,
                 fontWeight: FontWeight.bold,
               ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDoAmDat(){
+  Widget _buildDoAmDat() {
     return Container(
       height: 100,
       child: Stack(
         children: [
+          Center(child: Lottie.asset('assets/out.json')),
+          Center(child: Lottie.asset('assets/in.json')),
           Center(
-            child: Lottie.asset('assets/out.json'),
-          ),
-          Center(
-            child: Lottie.asset('assets/in.json'),
-          ),
-          Center(
-            child: Text('${(_mqtt.getAppState.getGarden.getDoAmDat ?? 0).toDouble()}%',
+            child: Text(
+              '${(_mqtt.getAppState.getGarden.getDoAmDat ?? 0).toDouble()}%',
               style: TextStyle(
                 color: Color(0xFF0D3770),
                 fontSize: 50,
                 fontWeight: FontWeight.bold,
               ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildButton(){
+  Widget _buildButton() {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20,vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Container(
         height: 150,
         child: Row(
           children: [
             Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Color(0xFF292636),
-                  ),
-                  child: Column(
-                    children: [
-                      Expanded(
-                          child: _buildLightIcon()
-                      ),
-                      _mqtt.getAppState.getGarden.getMode == 1?
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: CupertinoSwitch(
-                          value: _mqtt.getAppState.getGarden.getLightButton == 1? true:false,
-                          onChanged: (index){
-                            setState(() {});
-                            _mqtt.getAppState.getGarden.setLightButton(_mqtt.getAppState.getGarden.getLightButton == 1? 0:1);
-                            index == true?
-                            _mqtt.getManager.publish('A1B'):
-                            _mqtt.getManager.publish('A0B');
-                          },
-                        ),
-                      ) : SizedBox.shrink()
-                    ],
-                  ),
-                )),
-            SizedBox(width: 5,),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: Color(0xFF292636),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(child: _buildLightIcon()),
+                    _mqtt.getAppState.getGarden.getMode == 1
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: CupertinoSwitch(
+                              value:
+                                  _mqtt.getAppState.getGarden.getLightButton ==
+                                      1
+                                  ? true
+                                  : false,
+                              onChanged: (index) {
+                                setState(() {});
+                                _mqtt.getAppState.getGarden.setLightButton(
+                                  _mqtt.getAppState.getGarden.getLightButton ==
+                                          1
+                                      ? 0
+                                      : 1,
+                                );
+                                index == true
+                                    ? _mqtt.getManager.publish('A1B')
+                                    : _mqtt.getManager.publish('A0B');
+                              },
+                            ),
+                          )
+                        : SizedBox.shrink(),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(width: 5),
             Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Color(0xFF292636),
-                  ),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 50,
-                          width: 60,
-                          child: _buildFanIcon(),
-                        ),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: Color(0xFF292636),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        width: 60,
+                        child: _buildFanIcon(),
                       ),
-                      _mqtt.getAppState.getGarden.getMode == 1?
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: CupertinoSwitch(
-                            value: _mqtt.getAppState.getGarden.getFanButton == 1? true : false,
-                            onChanged: (index){
-                              setState(() {});
-                              _mqtt.getAppState.getGarden.setFanButton(_mqtt.getAppState.getGarden.getFanButton == 1? 0:1);
-                              index == true?
-                              _mqtt.getManager.publish('B1C'):
-                              _mqtt.getManager.publish('B0C');
-                            }),
-                      ) : SizedBox.shrink(),
-                    ],
-                  ),
-                )),
-            SizedBox(width: 5,),
+                    ),
+                    _mqtt.getAppState.getGarden.getMode == 1
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: CupertinoSwitch(
+                              value:
+                                  _mqtt.getAppState.getGarden.getFanButton == 1
+                                  ? true
+                                  : false,
+                              onChanged: (index) {
+                                setState(() {});
+                                _mqtt.getAppState.getGarden.setFanButton(
+                                  _mqtt.getAppState.getGarden.getFanButton == 1
+                                      ? 0
+                                      : 1,
+                                );
+                                index == true
+                                    ? _mqtt.getManager.publish('B1C')
+                                    : _mqtt.getManager.publish('B0C');
+                              },
+                            ),
+                          )
+                        : SizedBox.shrink(),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(width: 5),
             Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Color(0xFF292636),
-                  ),
-                  child: Column(
-                    children: [
-                      Expanded(
-                          child: _buildPumpIcon(),
-                      ),
-                      _mqtt.getAppState.getGarden.getMode == 1?
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: CupertinoSwitch(
-                            value: _mqtt.getAppState.getGarden.getPumpButton == 1? true : false,
-                            onChanged: (index){
-                              setState(() {});
-                              _mqtt.getAppState.getGarden.setPumpButton(_mqtt.getAppState.getGarden.getPumpButton == 1? 0 : 1);
-                              index == true?
-                              _mqtt.getManager.publish('C1D'):
-                              _mqtt.getManager.publish('C0D');
-                            }
-                        ),
-                      ): SizedBox.shrink(),
-                    ],
-                  ),
-                )),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: Color(0xFF292636),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(child: _buildPumpIcon()),
+                    _mqtt.getAppState.getGarden.getMode == 1
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: CupertinoSwitch(
+                              value:
+                                  _mqtt.getAppState.getGarden.getPumpButton == 1
+                                  ? true
+                                  : false,
+                              onChanged: (index) {
+                                setState(() {});
+                                _mqtt.getAppState.getGarden.setPumpButton(
+                                  _mqtt.getAppState.getGarden.getPumpButton == 1
+                                      ? 0
+                                      : 1,
+                                );
+                                index == true
+                                    ? _mqtt.getManager.publish('C1D')
+                                    : _mqtt.getManager.publish('C0D');
+                              },
+                            ),
+                          )
+                        : SizedBox.shrink(),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -377,36 +390,35 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
     if (mode == 0) {
       return temp > 36
           ? Lottie.asset(
-        'assets/fan.json', // Quạt bật
-      )
+              'assets/fan.json', // Quạt bật
+            )
           : Lottie.asset(
-        'assets/fanoff.json', // Quạt tắt
-        repeat: false,
-        controller: _fanController,
-        onLoaded: (composition) {
-          _fanController.duration = composition.duration;
-          _fanController.forward();
-          _fanController.value = 0;
-        },
-      );
+              'assets/fanoff.json', // Quạt tắt
+              repeat: false,
+              controller: _fanController,
+              onLoaded: (composition) {
+                _fanController.duration = composition.duration;
+                _fanController.forward();
+                _fanController.value = 0;
+              },
+            );
     }
-
     // Chế độ Manual
     else {
       return fanStatus == 1
           ? Lottie.asset(
-        'assets/fan.json', // Quạt bật
-      )
+              'assets/fan.json', // Quạt bật
+            )
           : Lottie.asset(
-        'assets/fanoff.json', // Quạt tắt
-        repeat: false,
-        controller: _fanController,
-        onLoaded: (composition) {
-          _fanController.duration = composition.duration;
-          _fanController.forward();
-          _fanController.value = 0;
-        },
-      );
+              'assets/fanoff.json', // Quạt tắt
+              repeat: false,
+              controller: _fanController,
+              onLoaded: (composition) {
+                _fanController.duration = composition.duration;
+                _fanController.forward();
+                _fanController.value = 0;
+              },
+            );
     }
   }
 
@@ -417,46 +429,36 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
 
     // Nếu chưa có dữ liệu (temp == 0) => Đèn OFF
     if (temp == 0) {
-      return Lottie.asset(
-        'assets/lightoff.json',
-        repeat: false,
-      );
+      return Lottie.asset('assets/lightoff.json', repeat: false);
     }
 
     // Chế độ Auto
     if (mode == 0) {
       return temp <= 32
           ? Lottie.asset(
-        'assets/light.json',
-        controller: _lightController,
-        repeat: true,
-        onLoaded: (composition) {
-          _lightController.duration = composition.duration;
-          _lightController.forward();
-        },
-      )
-          : Lottie.asset(
-        'assets/lightoff.json',
-        repeat: false,
-      );
+              'assets/light.json',
+              controller: _lightController,
+              repeat: true,
+              onLoaded: (composition) {
+                _lightController.duration = composition.duration;
+                _lightController.forward();
+              },
+            )
+          : Lottie.asset('assets/lightoff.json', repeat: false);
     }
-
     // Chế độ Manual
     else {
       return lightStatus == 1
           ? Lottie.asset(
-        'assets/light.json',
-        controller: _lightController,
-        repeat: true,
-        onLoaded: (composition) {
-          _lightController.duration = composition.duration;
-          _lightController.forward();
-        },
-      )
-          : Lottie.asset(
-        'assets/lightoff.json',
-        repeat: false,
-      );
+              'assets/light.json',
+              controller: _lightController,
+              repeat: true,
+              onLoaded: (composition) {
+                _lightController.duration = composition.duration;
+                _lightController.forward();
+              },
+            )
+          : Lottie.asset('assets/lightoff.json', repeat: false);
     }
   }
 
@@ -465,8 +467,9 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
     final soil = _mqtt.getAppState.getGarden.getDoAmDat;
     final pumpStatus = _mqtt.getAppState.getGarden.getPumpStatus;
 
-    // Nếu chưa có dữ liệu MQTT hoặc soil < 1 => Bơm OFF (chờ kết nối)
-    if (_currentState.getIconData == Icons.wifi_off || soil == null || soil < 1) {
+    if (_currentState.getIconData == Icons.wifi_off ||
+        soil == null ||
+        soil.isNaN) {
       return Padding(
         padding: const EdgeInsets.only(left: 35),
         child: Lottie.asset(
@@ -486,35 +489,34 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin{
       return soil < 50
           ? Lottie.asset('assets/binhnuoctuoicay.json') // Bơm bật
           : Padding(
-        padding: const EdgeInsets.only(left: 35),
-        child: Lottie.asset(
-          'assets/pumpoff.json',
-          controller: _pumpController,
-          onLoaded: (composition) {
-            _pumpController.duration = composition.duration;
-            _pumpController.forward();
-            _pumpController.value = 0;
-          },
-        ),
-      );
+              padding: const EdgeInsets.only(left: 35),
+              child: Lottie.asset(
+                'assets/pumpoff.json',
+                controller: _pumpController,
+                onLoaded: (composition) {
+                  _pumpController.duration = composition.duration;
+                  _pumpController.forward();
+                  _pumpController.value = 0;
+                },
+              ),
+            );
     }
-
     // Chế độ Manual
     else {
       return pumpStatus == 1
           ? Lottie.asset('assets/binhnuoctuoicay.json')
           : Padding(
-        padding: const EdgeInsets.only(left: 35),
-        child: Lottie.asset(
-          'assets/pumpoff.json',
-          controller: _pumpController,
-          onLoaded: (composition) {
-            _pumpController.duration = composition.duration;
-            _pumpController.forward();
-            _pumpController.value = 0;
-          },
-        ),
-      );
+              padding: const EdgeInsets.only(left: 35),
+              child: Lottie.asset(
+                'assets/pumpoff.json',
+                controller: _pumpController,
+                onLoaded: (composition) {
+                  _pumpController.duration = composition.duration;
+                  _pumpController.forward();
+                  _pumpController.value = 0;
+                },
+              ),
+            );
     }
   }
 }

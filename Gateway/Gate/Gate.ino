@@ -157,27 +157,41 @@ void callback(char *topic, byte *payload, unsigned int length)
   Serial.println(topic);
   Serial.println("📩 Payload: " + response);
 
+  //  Parse MQTT payload để cập nhật garden0 / gate
   XuLyChuoiMQTT(response);
 
-  pendingCmd[0] = (byte)garden0.getPump();
-  pendingCmd[1] = (byte)garden0.getFan();
-  pendingCmd[2] = (byte)garden0.getLight();
-  pendingCmd[3] = (byte)garden0.getMode();
-  hasPendingCmd = true;
+  // Kiểm tra nếu là gói điều khiển Gate (I..J hoặc J..K) → KHÔNG gửi xuống STM
+  bool isGateCmd = (response.indexOf("I") >= 0 && response.indexOf("J") >= 0) ||
+                   (response.indexOf("J") >= 0 && response.indexOf("K") >= 0);
 
-  // 3) Phản hồi control để app cập nhật UI
-  if (response.indexOf("A") >= 0 && response.indexOf("B") >= 0)
-    sendControlMQTT("light", garden0.getLight());
-  if (response.indexOf("B") >= 0 && response.indexOf("C") >= 0)
-    sendControlMQTT("fan", garden0.getFan());
-  if (response.indexOf("C") >= 0 && response.indexOf("D") >= 0)
-    sendControlMQTT("pump", garden0.getPump());
-  if (response.indexOf("D") >= 0 && response.indexOf("E") >= 0)
-    sendControlMQTT("mode", garden0.getMode());
+  if (!isGateCmd)
+  {
+    // Tạo pendingCmd để gửi xuống STM (chỉ khi không phải gói Gate)
+    pendingCmd[0] = (byte)garden0.getPump();
+    pendingCmd[1] = (byte)garden0.getFan();
+    pendingCmd[2] = (byte)garden0.getLight();
+    pendingCmd[3] = (byte)garden0.getMode();
+    hasPendingCmd = true;
 
-  Serial.printf("Queued CMD -> P=%d F=%d L=%d M=%d\n",
-                pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
+    // Phản hồi control để app cập nhật UI
+    if (response.indexOf("A") >= 0 && response.indexOf("B") >= 0)
+      sendControlMQTT("light", garden0.getLight());
+    if (response.indexOf("B") >= 0 && response.indexOf("C") >= 0)
+      sendControlMQTT("fan", garden0.getFan());
+    if (response.indexOf("C") >= 0 && response.indexOf("D") >= 0)
+      sendControlMQTT("pump", garden0.getPump());
+    if (response.indexOf("D") >= 0 && response.indexOf("E") >= 0)
+      sendControlMQTT("mode", garden0.getMode());
+
+    Serial.printf("Queued CMD -> P=%d F=%d L=%d M=%d\n",
+                  pendingCmd[0], pendingCmd[1], pendingCmd[2], pendingCmd[3]);
+  }
+  else
+  {
+    Serial.println(" (I..J or J..K) package are skiped!!");
+  }
 }
+
 
 void connectMQTT()
 {
@@ -265,9 +279,10 @@ void DocKhoangCach()
   else
   {
     // Tính mực nước (độ cao nước trong bồn)
-    float mucNuoc = 33.0 - distance; // 33 cm là chiều cao bồn
-    if (mucNuoc < 0)
-      mucNuoc = 0; // tránh âm nếu sensor nhiễu
+    float offset = 2.2; // diem dead cua cam bien ~< 2.5 cm
+    float mucNuoc = 11.0 - distance + offset;
+    if (mucNuoc > 11.0) mucNuoc = 11.0;
+    if (mucNuoc < 0) mucNuoc = 0; // tránh âm nếu sensor nhiễu
     gate.setDoCao(mucNuoc);
 
     Serial.print("💧 Muc nuoc (doCao): ");
@@ -311,12 +326,12 @@ void XuLyCheDoGate()
 
 void setPumpAuto()
 {
-  if (gate.getDoCao() >= 28.0f)
+  if (gate.getDoCao() >= 10.0f)
   {
     digitalWrite(PUMP, LOW); // tắt bơm khi bồn đầy
     gate.setMayBom("0");     // cập nhật trạng thái vào Gate
   }
-  else if (gate.getDoCao() <= 5.0f)
+  else if (gate.getDoCao() <= 3.0f)
   {
     digitalWrite(PUMP, HIGH); // bật bơm khi bồn cạn
     gate.setMayBom("1");
@@ -326,7 +341,7 @@ void setPumpAuto()
 void setPumpManual()
 {
   // Bảo vệ: nếu mực nước quá cao, luôn tắt bơm
-  if (gate.getDoCao() >= 28.0f)
+  if (gate.getDoCao() >= 10.0f)
   {
     digitalWrite(PUMP, LOW);
     gate.setMayBom("0");

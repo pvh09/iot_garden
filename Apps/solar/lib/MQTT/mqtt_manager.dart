@@ -19,11 +19,11 @@ class MQTTManager {
     required String topicsub,
     required String identifier,
     required MQTTAppState state,
-  })  : _identifier = identifier,
-        _host = host,
-        _topicpub = topicpub,
-        _topicsub = topicsub,
-        _currentState = state;
+  }) : _identifier = identifier,
+       _host = host,
+       _topicpub = topicpub,
+       _topicsub = topicsub,
+       _currentState = state;
 
   /// -----------------------------
   /// Khởi tạo cấu hình client MQTT
@@ -96,14 +96,16 @@ class MQTTManager {
     _client!.updates!.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
       final recMess = c![0].payload as MqttPublishMessage;
       final String topic = c[0].topic;
-      final String message = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+      final String message = MqttPublishPayload.bytesToStringAsString(
+        recMess.payload.message,
+      );
 
       print('📡 [MQTT] Topic: $topic');
       print('📩 [MQTT] Message: $message');
 
       _currentState.setReceivedText(message);
 
-      // ✅ hiện tại firmware chỉ gửi lên "subscribe" => cứ gọi setGarden + setGate
+      // hiện tại firmware chỉ gửi lên "subscribe" => cứ gọi setGarden + setGate
       if (topic.contains("sensor")) {
         _currentState.setGarden();
         _currentState.setGate();

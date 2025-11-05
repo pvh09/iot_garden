@@ -12,7 +12,6 @@ import 'dart:math';
 class GatePage extends StatefulWidget{
   @override
   State<StatefulWidget> createState() {
-    // TODO: implement createState
     return _GatePageState();
   }
 }
@@ -57,22 +56,21 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
         ),
         actions: <Widget>[
           Padding(
-            padding: const EdgeInsets.only(right: 15), // 🔹 đẩy icon sang trái 12px
+            padding: const EdgeInsets.only(right: 15),
             child: Consumer<MQTTAppState>(
               builder: (context, state, _) => Icon(
-                state.getIconData,   // lấy icon đúng theo state
-                color: Colors.white, // màu trắng dễ nhìn
-                size: 26,            // (tùy chọn) chỉnh cho vừa AppBar
+                state.getIconData,
+                color: Colors.white,
+                size: 26,
               ),
             ),
           ),
         ],
       ),
 
-      // ✅ Bọc trong SingleChildScrollView để tránh overflow
       body: SafeArea(
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(), // cuộn mượt tự nhiên
+          physics: const BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -92,7 +90,7 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
 
   Widget _buildTank() {
     final double mucNuoc = (_mqtt.getAppState.getGate.getDoCao ?? 0).toDouble();
-    final double percentValue = (mucNuoc / 28).clamp(0.0, 1.0);
+    final double percentValue = (mucNuoc / 11).clamp(0.0, 1.0);
 
     return Padding(
       padding: const EdgeInsets.all(10),
@@ -115,12 +113,12 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
                   child: LinearPercentIndicator(
                     width: 300,
                     lineHeight: 150,
-                    percent: percentValue, // ✅ dùng giá trị an toàn
+                    percent: percentValue,
                     linearStrokeCap: LinearStrokeCap.butt,
                     progressColor: Colors.blue,
                     center: Transform.rotate(
                       angle: pi / 2,
-                      child: Text('${((mucNuoc * 100 / 28).clamp(0, 100).toInt())}%',
+                      child: Text('${((mucNuoc * 100 / 11).clamp(0, 100).toInt())}%',
                         style: const TextStyle(
                           color: Color(0xFF292636),
                           fontSize: 25,
@@ -150,7 +148,7 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
-                        '${(mucNuoc * 15 / 28).clamp(0, 15).toStringAsFixed(2)}L / 15L',
+                        '${(mucNuoc * 5 / 11).clamp(0, 5).toStringAsFixed(2)}L / 5L',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -200,14 +198,13 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
         ),
         child: Row(
           children: [
-            // 🔹 Chỉ hiển thị công tắc khi ở MANUAL
             _mqtt.getAppState.getGate.getCheDo == 1
                 ? Expanded(
               child: CupertinoSwitch(
                 value: gate.getMayBomButton == 1 ? true : false,
                 onChanged: (value) {
                   // Nếu bình đầy và người dùng định bật bơm -> cảnh báo
-                  if (value == true && gate.getDoCao >= 28) {
+                  if (value == true && gate.getDoCao >= 10.5) {
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
@@ -247,7 +244,6 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
                     );
                     return;
                   }
-
                   // Cập nhật trạng thái công tắc
                   setState(() {
                     if (gate.getMayBomButton == 1) {
@@ -257,7 +253,7 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
                     }
                   });
 
-                  // ✅ Gửi MQTT lệnh điều khiển bơm thủ công
+                  // Gửi MQTT lệnh điều khiển bơm thủ công
                   if (value == true) {
                     _mqtt.getManager.publish('J1K'); // Bật bơm
                   } else {
@@ -267,8 +263,6 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
               ),
             )
                 : SizedBox.shrink(),
-
-            // 🔹 Icon bơm (hiển thị theo trạng thái thực tế)
             Expanded(
               child: SizedBox(
                 height: 100,
@@ -289,21 +283,21 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
     if (gate.getDoCao == null) {
       return Image.asset('assets/maybomoff.png');
     }
-    // 🔹 AUTO MODE
+    // AUTO MODE
     if (gate.getCheDo == 0) {
       return gate.getMayBom == 1
           ? Image.asset('assets/maybomon.png')
           : Image.asset('assets/maybomoff.png');
     }
 
-    // 🔹 MANUAL MODE
+    // MANUAL MODE
     else {
       // Nếu đang bật bơm mà bình đầy -> cảnh báo + tự động tắt
-      if (gate.getDoCao >= 28 && gate.getMayBom == 1) {
+      if (gate.getDoCao >= 10.5 && gate.getMayBom == 1) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           showDialog(
             context: context,
-            barrierDismissible: false, // không tắt khi chạm ra ngoài
+            barrierDismissible: false,
             builder: (_) => AlertDialog(
               backgroundColor: const Color(0xFF292639),
               shape: RoundedRectangleBorder(
@@ -332,7 +326,7 @@ class _GatePageState extends State<GatePage> with SingleTickerProviderStateMixin
             ),
           );
 
-          // 🔹 Gửi lệnh tắt bơm (vẫn ở chế độ MANUAL)
+          // Gửi lệnh tắt bơm (vẫn ở chế độ MANUAL)
           _mqtt.getManager.publish('J0K');
         });
 

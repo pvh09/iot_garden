@@ -2,33 +2,35 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
-enum MQTTAppConnectionState {connected, disconnected, connecting}
-class MQTTAppState with ChangeNotifier{
-  MQTTAppConnectionState _appConnectionState = MQTTAppConnectionState.disconnected;
+enum MQTTAppConnectionState { connected, disconnected, connecting }
+
+class MQTTAppState with ChangeNotifier {
+  MQTTAppConnectionState _appConnectionState =
+      MQTTAppConnectionState.disconnected;
   String _receivedText = '';
   Garden _garden = Garden(
-      nhietDo: 0,
-      doAmDat: 0,
-      doAm: 0,
-      lightStatus: 0,
-      fanStatus: 0,
-      pumpStatus: 0,
-      lightButton: 0,
-      pumpButton: 0,
-      fanButton: 0,
-      mode: 0
+    nhietDo: 0,
+    doAmDat: 0,
+    doAm: 0,
+    lightStatus: 0,
+    fanStatus: 0,
+    pumpStatus: 0,
+    lightButton: 0,
+    pumpButton: 0,
+    fanButton: 0,
+    mode: 0,
   );
   Garden _garden1 = Garden(
-      nhietDo: 0,
-      doAmDat: 0,
-      doAm: 0,
-      lightStatus: 0,
-      fanStatus: 0,
-      pumpStatus: 0,
-      lightButton: 0,
-      pumpButton: 0,
-      fanButton: 0,
-      mode: 0
+    nhietDo: 0,
+    doAmDat: 0,
+    doAm: 0,
+    lightStatus: 0,
+    fanStatus: 0,
+    pumpStatus: 0,
+    lightButton: 0,
+    pumpButton: 0,
+    fanButton: 0,
+    mode: 0,
   );
 
   Gate _gate = Gate(docao: 0, chedo: 0, maybom: 0, maybomButton: 0);
@@ -74,9 +76,8 @@ class MQTTAppState with ChangeNotifier{
     notifyListeners();
   }
 
-
   ////decode => set data cho gate
-  void setGate(){
+  void setGate() {
     _gate = Gate(
       docao: setDocao(),
       chedo: _json['chedo'],
@@ -123,25 +124,22 @@ class MQTTAppState with ChangeNotifier{
     notifyListeners();
   }
 
-
-  double setDocao(){
-    if( _json['docao'] >= 28){
+  double setDocao() {
+    if (_json['docao'] >= 28) {
       return 28.0;
-    }
-    else if ( _json['docao'] >= 0){
+    } else if (_json['docao'] >= 0) {
       return _json['docao'].toDouble();
-    }
-    else{
+    } else {
       return 0.0;
     }
   }
 
-  void clearReceiveText(){
+  void clearReceiveText() {
     _receivedText = '';
     notifyListeners(); //
   }
 
-  void setAppConnectionState(MQTTAppConnectionState state){
+  void setAppConnectionState(MQTTAppConnectionState state) {
     _appConnectionState = state;
     switch (state) {
       case MQTTAppConnectionState.connected:
@@ -172,7 +170,7 @@ class MQTTAppState with ChangeNotifier{
   Gate get getGate => _gate;
 }
 
-class Garden{
+class Garden {
   dynamic _nhietDo = 0;
   dynamic _doAm = 0;
   dynamic _doAmDat = 0;
@@ -194,31 +192,30 @@ class Garden{
     required int fanButton,
     required int pumpButton,
     required int mode,
-  }) :
-        _nhietDo = nhietDo,
-        _doAm = doAm,
-        _doAmDat = doAmDat,
-        _lightStatus = lightStatus,
-        _pumpStatus = pumpStatus,
-        _fanStatus = fanStatus,
-        _lightButton = lightButton,
-        _fanButton = fanButton,
-        _pumpButton = pumpButton,
-        _mode = mode;
+  }) : _nhietDo = nhietDo,
+       _doAm = doAm,
+       _doAmDat = doAmDat,
+       _lightStatus = lightStatus,
+       _pumpStatus = pumpStatus,
+       _fanStatus = fanStatus,
+       _lightButton = lightButton,
+       _fanButton = fanButton,
+       _pumpButton = pumpButton,
+       _mode = mode;
 
-  void setLightButton(int lightButton){
+  void setLightButton(int lightButton) {
     _lightButton = lightButton;
   }
 
-  void setFanButton(int fanButton){
+  void setFanButton(int fanButton) {
     _fanButton = fanButton;
   }
 
-  void setPumpButton(int pumpButton){
+  void setPumpButton(int pumpButton) {
     _pumpButton = pumpButton;
   }
 
-  void setMode(int mode){
+  void setMode(int mode) {
     _mode = mode;
   }
 
@@ -248,7 +245,8 @@ class Garden{
 
   int get getMode => _mode;
 }
-class Gate{
+
+class Gate {
   dynamic _docao;
   int _chedo;
   int _maybom;
@@ -259,17 +257,16 @@ class Gate{
     required int chedo,
     required int maybom,
     required int maybomButton,
-  }):
-        _docao = docao,
-        _chedo = chedo,
-        _maybom = maybom,
-        _maybomButton = maybomButton;
+  }) : _docao = docao,
+       _chedo = chedo,
+       _maybom = maybom,
+       _maybomButton = maybomButton;
 
-  void setMayBomButton(int state){
+  void setMayBomButton(int state) {
     _maybomButton = state;
   }
 
-  void setChedo(int chedo){
+  void setChedo(int chedo) {
     _chedo = chedo;
   }
 

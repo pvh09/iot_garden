@@ -7,19 +7,16 @@ import 'package:solar/Screen/Node/node_page.dart';
 
 void main() => runApp(MyApp());
 
-class MyApp extends StatelessWidget{
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => MQTTAppState()),
-        ChangeNotifierProvider(create: (context) => MQTT())
+        ChangeNotifierProvider(create: (context) => MQTT()),
       ],
-      child:  MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: MQTTView(),
-      ),
+      child: MaterialApp(debugShowCheckedModeBanner: false, home: MQTTView()),
     );
   }
 }

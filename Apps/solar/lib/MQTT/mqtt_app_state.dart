@@ -125,8 +125,8 @@ class MQTTAppState with ChangeNotifier {
   }
 
   double setDocao() {
-    if (_json['docao'] >= 28) {
-      return 28.0;
+    if (_json['docao'] >= 11) {
+      return 11.0;
     } else if (_json['docao'] >= 0) {
       return _json['docao'].toDouble();
     } else {
@@ -136,7 +136,7 @@ class MQTTAppState with ChangeNotifier {
 
   void clearReceiveText() {
     _receivedText = '';
-    notifyListeners(); //
+    notifyListeners();
   }
 
   void setAppConnectionState(MQTTAppConnectionState state) {

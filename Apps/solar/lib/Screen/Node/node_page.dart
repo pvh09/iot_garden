@@ -166,9 +166,9 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin {
             garden.setFanButton(temp > 36 ? 1 : 0);
             garden.setFanStatus(temp > 36 ? 1 : 0);
 
-            // Bơm (Auto: <50 bật)
-            garden.setPumpButton(soil < 50 ? 1 : 0);
-            garden.setPumpStatus(soil < 50 ? 1 : 0);
+            // Bơm (Auto: <30 bật)
+            garden.setPumpButton(soil < 30 ? 1 : 0);
+            garden.setPumpStatus(soil < 30 ? 1 : 0);
           } else {
             // Chuyển về Auto → reset nút manual
             garden.setFanButton(0);
@@ -486,7 +486,7 @@ class _NodePageState extends State<NodePage> with TickerProviderStateMixin {
 
     //  Chế độ Auto
     if (mode == 0) {
-      return soil < 50
+      return soil < 30
           ? Lottie.asset('assets/binhnuoctuoicay.json') // Bơm bật
           : Padding(
               padding: const EdgeInsets.only(left: 35),

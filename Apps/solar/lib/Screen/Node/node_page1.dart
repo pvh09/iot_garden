@@ -38,7 +38,7 @@ class _NodePageState1 extends State<NodePage1> with TickerProviderStateMixin{
         appBar: AppBar(
             centerTitle: true,
             backgroundColor: const Color(0xFF292636),
-            foregroundColor: Colors.white, // 🔹 đổi màu icon và chữ AppBar thành trắng
+            foregroundColor: Colors.white, // đổi màu icon và chữ AppBar thành trắng
             iconTheme: const IconThemeData(color: Colors.white),
             title: const Text(
               'Garden 2',
@@ -46,7 +46,7 @@ class _NodePageState1 extends State<NodePage1> with TickerProviderStateMixin{
             ),
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: 15), // 🔹 đẩy icon sang trái 15px
+              padding: const EdgeInsets.only(right: 15), //đẩy icon sang trái 15px
               child: Consumer<MQTTAppState>(
                 builder: (context, state, _) => Icon(
                   state.getIconData,

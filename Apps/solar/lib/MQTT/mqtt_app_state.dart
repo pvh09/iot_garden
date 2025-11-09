@@ -94,7 +94,7 @@ class MQTTAppState with ChangeNotifier {
   void updateControlField() {
     if (_json == null) return;
 
-    print("🔄 [updateControlField] $_json");
+    print("[updateControlField] $_json");
 
     // Nếu JSON có các key này => chỉ cập nhật đúng field, không đụng đến cảm biến
     if (_json.containsKey('light')) {
@@ -156,7 +156,7 @@ class MQTTAppState with ChangeNotifier {
         _connectionStringText = 'Connecting';
         break;
     }
-    print("🔔 UI updated: $_connectionStringText");
+    print("UI updated: $_connectionStringText");
     notifyListeners();
   }
 

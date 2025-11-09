@@ -51,7 +51,7 @@ class MQTTManager {
       _currentState.setAppConnectionState(MQTTAppConnectionState.connecting);
       await _client!.connect("smartiot", "Abc112233");
     } on Exception catch (e) {
-      print('❌ Kết nối thất bại: $e');
+      print('Kết nối thất bại: $e');
       disconnect();
     }
   }
@@ -68,11 +68,11 @@ class MQTTManager {
     final builder = MqttClientPayloadBuilder();
     builder.addString(message);
     _client!.publishMessage(_topicpub, MqttQos.exactlyOnce, builder.payload!);
-    print("📤 Publish → $_topicpub : $message");
+    print("Publish → $_topicpub : $message");
   }
 
   void onSubscribed(String topic) {
-    print('✅ Subscribed confirmed for topic: $topic');
+    print('Subscribed confirmed for topic: $topic');
   }
 
   void onDisconnected() {
@@ -100,8 +100,8 @@ class MQTTManager {
         recMess.payload.message,
       );
 
-      print('📡 [MQTT] Topic: $topic');
-      print('📩 [MQTT] Message: $message');
+      print('[MQTT] Topic: $topic');
+      print('[MQTT] Message: $message');
 
       _currentState.setReceivedText(message);
 

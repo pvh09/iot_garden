@@ -108,13 +108,14 @@ void NRFSetup()
       ;
   }
 
-  radio.setAutoAck(false);         // khớp STM (AutoAck ON)
+  radio.setAutoAck(false);
   radio.setRetries(10, 15);        // 5 * 250us, 15 lần
   radio.setCRCLength(RF24_CRC_8);  // CRC 8-bit
   radio.setChannel(40);            // kênh 40
   radio.setDataRate(RF24_250KBPS); // 250 kbps
-  radio.setPALevel(RF24_PA_LOW);   // công suất vừa
+  radio.setPALevel(RF24_PA_LOW);
   radio.enableDynamicPayloads();   // BẬT DPL để nhận chuỗi biến độ dài
+  
   // ESP NHẬN uplink từ STM trên ADDR_UP (pipe 0)
   radio.openReadingPipe(0, ADDR_UP);
   // ESP GỬI downlink cho STM trên ADDR_DN
@@ -136,7 +137,7 @@ void wifiSetup()
   WiFiManager wifiManager;
   // wifiManager.resetSettings();
   wifiManager.autoConnect("ESP8266config");
-  Serial.println("✅: WiFi Connected");
+  Serial.println("WiFi Connected");
   Serial.print(wifiManager.getWiFiSSID(true));
   Serial.print(" --- ");
   Serial.println(wifiManager.getWiFiPass(true));
@@ -153,11 +154,10 @@ void callback(char *topic, byte *payload, unsigned int length)
   for (unsigned int i = 0; i < length; i++)
     response += (char)payload[i];
 
-  Serial.print("📡 Topic: ");
+  Serial.print("Topic: ");
   Serial.println(topic);
-  Serial.println("📩 Payload: " + response);
+  Serial.println("Payload: " + response);
 
-  //  Parse MQTT payload để cập nhật garden0 / gate
   XuLyChuoiMQTT(response);
 
   // Kiểm tra nếu là gói điều khiển Gate (I..J hoặc J..K) → KHÔNG gửi xuống STM
@@ -192,7 +192,6 @@ void callback(char *topic, byte *payload, unsigned int length)
   }
 }
 
-
 void connectMQTT()
 {
   if (WiFi.status() != WL_CONNECTED)
@@ -215,7 +214,7 @@ void reconnect()
 {
   while (!client.connected())
   {
-    Serial.println("🔗 Connecting to MQTT Broker... ");
+    Serial.println("Connecting to MQTT Broker... ");
     if (client.connect(ID, MQTT_USER, MQTT_PASS))
     {
       Serial.println("✅: Connected!");
@@ -281,11 +280,13 @@ void DocKhoangCach()
     // Tính mực nước (độ cao nước trong bồn)
     float offset = 2.2; // diem dead cua cam bien ~< 2.5 cm
     float mucNuoc = 11.0 - distance + offset;
-    if (mucNuoc > 11.0) mucNuoc = 11.0;
-    if (mucNuoc < 0) mucNuoc = 0; // tránh âm nếu sensor nhiễu
+    if (mucNuoc > 11.0)
+      mucNuoc = 11.0;
+    if (mucNuoc < 0)
+      mucNuoc = 0; // tránh âm nếu sensor nhiễu
     gate.setDoCao(mucNuoc);
 
-    Serial.print("💧 Muc nuoc (doCao): ");
+    Serial.print("Muc nuoc (doCao): ");
     Serial.print(mucNuoc, 2);
     Serial.println(" cm");
   }
@@ -430,7 +431,7 @@ void ReadNRF_RX()
       garden0.setNhietDo(t);
       garden0.setDoAm(h);
       garden0.setDoAmDat(s);
-      Serial.printf("Node data: T=%.1f | H=%.1f | Soil=%.1f\n", t, h, s);
+      Serial.printf("[STM -> GATE]Node data: T=%.1f | H=%.1f | Soil=%.1f\n", t, h, s);
 
       // ĐÁNH DẤU THỜI ĐIỂM VỪA NHẬN UPLINK
       lastUplinkMs = millis();
@@ -480,7 +481,7 @@ String JsonGarden0()
   json += "\"docao\": " + String(gate.getDoCao());
   json += "}";
 
-  Serial.println("📤 JSON Sent: " + json);
+  Serial.println("[ESP -> MQTT] JSON Sent: " + json);
   return json;
 }
 
@@ -508,7 +509,7 @@ void sendData()
 
   if (millis() - last >= 5000)
   {
-    client.publish("subscribe/sensor", JsonGarden0().c_str());
+    sendSensorMQTT();
     DocKhoangCach();
     XuLyCheDoGate();
     last = millis();

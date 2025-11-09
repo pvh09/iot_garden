@@ -199,7 +199,7 @@ void Read_NRF(void (*Control_Device)(Garden *))
       uint8_t wid = nrf24_r_pld_wid(); // đọc độ dài payload thực
       if (wid != 4)
       {
-        sendText("Dump Data\n");
+        sendText("ESP -> STM\n");
         // đọc/xả cho sạch FIFO rồi tiếp
         uint8_t dump[32];
         if (wid > 0 && wid <= 32)
@@ -348,7 +348,7 @@ void Control_Device_Auto(Garden *g)
   }
 
   // --- May bom ---
-  if (soil < 50.0f)
+  if (soil < 30.0f)
   {
     HAL_GPIO_WritePin(GPIOB, PUMP_PIN, GPIO_PIN_SET);
     g->pump = 1;
